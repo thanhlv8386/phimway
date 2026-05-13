@@ -1,0 +1,18 @@
+{
+  "name": "Phimway",
+  "identifier": "vn.thanh.phimway.clean",
+  "version": "1.0.0",
+  "description": "Open Phimway stream in IINA",
+  "author": {
+    "name": "Thanh Le Van",
+    "email": "thanh.3ac.vn@gmail.com"
+  },
+  "entry": "main.js",
+  "permissions": [
+    "network-request",
+    "show-osd"
+  ],
+  "allowedDomains": [
+    "legacy.phimway.com"
+  ]
+}

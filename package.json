@@ -1,0 +1,14 @@
+{
+  "name": "phimway-iina",
+  "version": "1.0.0",
+  "description": "Auto play Phimway movies in IINA with subtitles",
+  "main": "phimway.js",
+  "bin": {
+    "phimway": "phimway.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Antigravity",
+  "license": "MIT"
+}
