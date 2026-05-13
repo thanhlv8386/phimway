@@ -185,7 +185,7 @@ function findNodeByNumber(nodes, targetNumber) {
 
 async function fetchSuggestions() {
   const today = getTodayDateString();
-  const url = `${BASE_URL}/b/suggestions/titles-${today}-13.js`;
+  const url = `${BASE_URL}/b/suggestions/titles-${today}.js`;
 
   const response = await fetch(url, {
     headers: {
