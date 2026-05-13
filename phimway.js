@@ -905,8 +905,6 @@ async function main() {
       }
     }
 
-    const IINA_CLI = "/Applications/IINA.app/Contents/MacOS/iina-cli";
-
     function shellQuote(str) {
       return `'${String(str).replace(/'/g, `'\\''`)}'`;
     }
@@ -930,11 +928,13 @@ async function main() {
     }
 
     const finalCommand = [
-      shellQuote(IINA_CLI),
-      "--no-stdin",
+      "open",
+      "-n",
+      "-a",
+      "IINA",
+      "--args",
       shellQuote(title.srcUrl),
-      "--",
-      ...mpvArgs,
+      ...mpvArgs.map((arg) => "--mpv-" + arg.substring(2)),
     ].join(" ");
 
     console.log(`\n\x1b[35m>>> Opening IINA via iina-cli...\x1b[0m`);
@@ -950,11 +950,6 @@ async function main() {
         if (stderr) console.error(stderr);
       } else {
         console.log("\x1b[32m✓ Success! IINA should be playing now.\x1b[0m");
-        setTimeout(() => {
-          exec(
-            'osascript -e \'tell application "System Events" to set frontmost of process "IINA" to true\'',
-          );
-        }, 1000);
       }
     });
   } catch (error) {
