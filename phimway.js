@@ -886,9 +886,7 @@ async function main() {
 
     const sortedSubs = [...viSubs, ...enSubs];
 
-    const localSubPaths = [];
-    for (let i = 0; i < sortedSubs.length; i++) {
-      const sub = sortedSubs[i];
+    const downloadPromises = sortedSubs.map(async (sub, i) => {
       const remoteUrl = `https://legacy.phimway.com/b/subtitle/${sub.subsceneId}/${sub.files[0]}/vtt.css`;
       const lang = sub.language === "vi" ? "VN" : "EN";
       const defaultLabel = sub.isDefault ? "_Default" : "";
@@ -898,12 +896,18 @@ async function main() {
 
       try {
         await downloadSubtitle(remoteUrl, localPath);
-        localSubPaths.push(localPath);
         console.log(`\x1b[34m  ✓ Downloaded:\x1b[0m ${fileName}`);
+        return { name: fileName, path: localPath };
       } catch (err) {
         console.error(`\x1b[33m  ✗ Error downloading ${fileName}\x1b[0m`);
+        return { name: fileName, path: null };
       }
-    }
+    });
+
+    const subDownloadResults = await Promise.all(downloadPromises);
+    const localSubPaths = subDownloadResults
+      .filter((p) => p.path !== null)
+      .map((p) => p.path);
 
     function shellQuote(str) {
       return `'${String(str).replace(/'/g, `'\\''`)}'`;
