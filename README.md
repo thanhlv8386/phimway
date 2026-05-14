@@ -1,65 +1,70 @@
-| Command                         | Ý nghĩa                                                                                           |
-| ------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `node phimway.js`             | Chạy chế độ nhập tên phim thủ công                                                          |
-| `node phimway.js 322`         | Mở phim hoặc episode theo ID                                                                      |
-| `node phimway.js Fallout`     | Tìm `Fallout`, ưu tiên Movie, cho chọn kết quả                                              |
-| `node phimway.js Fallout 2`   | Nếu có season thật: mở Season 2. Nếu chỉ có episode trực tiếp: phát Episode 2             |
-| `node phimway.js Fallout 2/4` | Nếu có season thật: phát Season 2 Episode 4. Nếu chỉ có episode trực tiếp: phát Episode 4 |
+# Phimway to IINA
 
+Script Node.js giúp stream phim trực tiếp từ Phimway sang trình phát IINA trên macOS, tự động tải phụ đề và tối ưu hóa trải nghiệm xem phim qua dòng lệnh (CLI).
 
-## 1. Chạy không truyền tham số
+## 🚀 Tính năng nổi bật
+- **Tìm kiếm thông minh:** Tìm phim theo tên, ID, hoặc theo định dạng Season/Episode.
+- **Tải phụ đề song song:** Sử dụng `Promise.all` để tải toàn bộ phụ đề (Việt/Anh) cùng lúc, tốc độ cực nhanh (< 1s).
+- **Tích hợp IINA:** Tự động mở IINA với link stream và nạp sẵn toàn bộ file phụ đề đã tải.
+- **Xử lý mượt mà:** Giao diện CLI thân thiện, hỗ trợ chọn phim/tập trực quan, thoát chương trình sạch sẽ bằng Ctrl+C.
 
-<pre class="overflow-visible! px-0!" data-start="1059" data-end="1086"><div class="relative w-full mt-4 mb-1"><div class=""><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-token-bg-elevated-secondary corner-superellipse/1.1 overflow-clip rounded-3xl lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼs ͼ16"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span class="ͼ10">node</span><span> phimway.js</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></pre>
+## 📋 Hướng dẫn sử dụng nhanh
 
-Script sẽ hỏi tên phim cần tìm:
-
-<pre class="overflow-visible! px-0!" data-start="1121" data-end="1155"><div class="relative w-full mt-4 mb-1"><div class=""><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-token-bg-elevated-secondary corner-superellipse/1.1 overflow-clip rounded-3xl lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼs ͼ16"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>Nhập tên phim cần tìm:</span></code></pre></div></div></div></div></div></div></div></div></div></div></div></div></pre>
-
-Sau đó hiển thị danh sách kết quả để bạn chọn thủ công.
-
-Phù hợp khi bạn chưa muốn nhập tên phim ngay trong command.
-
-## 2. Mở phim hoặc episode theo ID
-
-<pre class="overflow-visible! px-0!" data-start="1316" data-end="1347"><div class="relative w-full mt-4 mb-1"><div class=""><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-token-bg-elevated-secondary corner-superellipse/1.1 overflow-clip rounded-3xl lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼs ͼ16"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span class="ͼ10">node</span><span> phimway.js </span><span class="ͼy">322</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></pre>
-
-Command này dùng khi bạn đã biết ID phim hoặc ID episode trên Phimway.
-
-Nếu ID là phim có link phát trực tiếp, script sẽ mở luôn bằng IINA.
-
-Nếu ID là phim cha có danh sách tập hoặc mùa, script sẽ hiển thị danh sách để bạn chọn tiếp.
-
-Ví dụ:
-
-<pre class="overflow-visible! px-0!" data-start="1592" data-end="1625"><div class="relative w-full mt-4 mb-1"><div class=""><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-token-bg-elevated-secondary corner-superellipse/1.1 overflow-clip rounded-3xl lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼs ͼ16"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span class="ͼ10">node</span><span> phimway.js </span><span class="ͼy">68125</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></pre>
+| Lệnh | Ý nghĩa |
+| :--- | :--- |
+| `node phimway.js` | Chế độ tương tác (nhập tên phim thủ công) |
+| `node phimway.js 322` | Mở phim hoặc tập theo ID cụ thể |
+| `node phimway.js Fallout` | Tìm phim `Fallout`, ưu tiên bản Movie |
+| `node phimway.js Fallout 2` | Tìm `Fallout`, mở Season 2 hoặc Episode 2 |
+| `node phimway.js Fallout 2/4` | Tìm `Fallout`, phát Season 2 Episode 4 |
 
 ---
 
-## 3. Tìm phim theo tên
+## 🔍 Chi tiết các chế độ
 
-<pre class="overflow-visible! px-0!" data-start="1657" data-end="1692"><div class="relative w-full mt-4 mb-1"><div class=""><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-token-bg-elevated-secondary corner-superellipse/1.1 overflow-clip rounded-3xl lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼs ͼ16"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span class="ͼ10">node</span><span> phimway.js Fallout</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></pre>
+### 1. Chế độ tương tác
+Chạy lệnh mà không truyền tham số, script sẽ hỏi bạn tên phim:
+```bash
+node phimway.js
+```
+*Kết quả:* Script sẽ hiện danh sách phim khớp nhất để bạn chọn bằng số thứ tự.
 
-Khi chỉ nhập tên phim, script sẽ:
+### 2. Mở theo ID
+Dùng khi bạn đã biết ID của phim hoặc tập phim trên Phimway:
+```bash
+node phimway.js 68125
+```
+- Nếu ID là một tập phim: Phát luôn.
+- Nếu ID là phim bộ: Hiện danh sách mùa/tập để chọn tiếp.
 
-* Tìm phim theo từ khóa `Fallout`
-* Ưu tiên kết quả loại `Movie`
-* Hiển thị danh sách kết quả
-* Cho bạn chọn phim muốn phát
+### 3. Tìm kiếm và phát (Auto-search)
+Tìm nhanh một bộ phim. Script sẽ tự động lấy kết quả đầu tiên có độ khớp cao nhất:
+```bash
+node phimway.js "The Dark Knight"
+```
+*Gợi ý:* Nếu tên phim có khoảng trắng, hãy bọc trong dấu nháy kép.
 
-Ví dụ output:
+### 4. Tìm theo Season/Episode
+Script hỗ trợ cú pháp thông minh để tìm nhanh tập phim trong phim bộ:
+```bash
+# Tìm phim Fallout và mở Season 2
+node phimway.js Fallout 2
 
-<pre class="overflow-visible! px-0!" data-start="1869" data-end="1986"><div class="relative w-full mt-4 mb-1"><div class=""><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-token-bg-elevated-secondary corner-superellipse/1.1 overflow-clip rounded-3xl lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼs ͼ16"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>Kết quả tìm kiếm:</span><br/><br/><span class="ͼy">1</span><span>. [Movie] Fallout </span><span class="ͼ12">-</span><span> ID: xxx</span><br/><span class="ͼy">2</span><span>. [TV] Fallout </span><span class="ͼ12">-</span><span> ID: yyy</span><br/><br/><span>Chọn số thứ tự phim muốn phát:</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></pre>
-
-Một số ví dụ khác:
-
-<pre class="overflow-visible! px-0!" data-start="2008" data-end="2096"><div class="relative w-full mt-4 mb-1"><div class=""><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-token-bg-elevated-secondary corner-superellipse/1.1 overflow-clip rounded-3xl lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼs ͼ16"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span class="ͼ10">node</span><span> phimway.js Dune</span><br/><span class="ͼ10">node</span><span> phimway.js Batman</span><br/><span class="ͼ10">node</span><span> phimway.js </span><span class="ͼz">"The Last of Us"</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></pre>
-
-Với tên phim có khoảng trắng, bạn có thể bọc bằng dấu nháy kép:
-
-<pre class="overflow-visible! px-0!" data-start="2163" data-end="2208"><div class="relative w-full mt-4 mb-1"><div class=""><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-token-bg-elevated-secondary corner-superellipse/1.1 overflow-clip rounded-3xl lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼs ͼ16"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span class="ͼ10">node</span><span> phimway.js </span><span class="ͼz">"The Dark Knight"</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></pre>
+# Tìm phim Fallout và phát ngay Season 2, Episode 4
+node phimway.js Fallout 2/4
+```
 
 ---
 
-## 4. Tìm phim bộ theo số season hoặc số tập
+## 🛠 Yêu cầu hệ thống
+- **macOS** (vì script sử dụng trình phát IINA).
+- **Node.js** (phiên bản 18 trở lên).
+- **IINA Player** và `iina-cli` (thường đi kèm khi cài IINA).
 
-<pre class="overflow-visible! px-0!" data-start="2261" data-end="2298"><div class="relative w-full mt-4 mb-1"><div class=""><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-token-bg-elevated-secondary corner-superellipse/1.1 overflow-clip rounded-3xl lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼs ͼ16"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span class="ͼ10">node</span><span> phimway.js Fallout </span><span class="ͼy">2</span></code></pre></div></div></div></div></div></div></div></div></div></div></div></div></pre>
+## 📦 Cài đặt
+1. Clone hoặc tải file `phimway.js` về máy.
+2. Đảm bảo bạn đã cài các dependencies (nếu có dùng thư mục `node_modules`).
+3. Cấp quyền thực thi (tùy chọn): `chmod +x phimway.js`.
+
+---
+*Chúc bạn xem phim vui vẻ!*
