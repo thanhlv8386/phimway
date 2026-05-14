@@ -749,83 +749,83 @@ async function resolveSeasonOnlyTitleId(rootTitle, seasonNumber) {
 }
 
 async function main() {
-  const command = parseCommandArgs(process.argv);
+  try {
+    const command = parseCommandArgs(process.argv);
 
-  let id;
-  let autoSeasonEpisode = null;
-  let autoSeasonOnly = null;
+    let id;
+    let autoSeasonEpisode = null;
+    let autoSeasonOnly = null;
 
-  if (command.mode === "interactive") {
-    id = await askUserToSelectMovie();
-  } else if (command.mode === "id") {
-    id = command.id;
-  } else if (command.mode === "search") {
-    const titles = await fetchSuggestions();
-    const results = searchTitles(titles, command.keyword, 20);
+    if (command.mode === "interactive") {
+      id = await askUserToSelectMovie();
+    } else if (command.mode === "id") {
+      id = command.id;
+    } else if (command.mode === "search") {
+      const titles = await fetchSuggestions();
+      const results = searchTitles(titles, command.keyword, 20);
 
-    if (results.length === 0) {
-      console.error(
-        `\x1b[31mKhông tìm thấy phim nào khớp với: ${command.keyword}\x1b[0m`,
-      );
-      process.exit(1);
-    }
-
-    console.log("\n\x1b[32mKết quả tìm kiếm:\x1b[0m");
-
-    results.forEach((movie, index) => {
-      const typeLabel = movie.type === "show" ? "TV" : "Movie";
-      console.log(
-        `${index + 1}. [${typeLabel}] ${movie.nameVi || movie.nameEn} ${
-          movie.nameEn && movie.nameVi && movie.nameEn !== movie.nameVi
-            ? `(${movie.nameEn})`
-            : ""
-        } - ID: ${movie.id}`,
-      );
-    });
-
-    const rl = readline.createInterface({ input, output });
-
-    try {
-      const answer = await rl.question(
-        "\n\x1b[36mChọn số thứ tự phim muốn phát: \x1b[0m",
-      );
-
-      const selectedIndex = Number(answer) - 1;
-
-      if (
-        Number.isNaN(selectedIndex) ||
-        selectedIndex < 0 ||
-        selectedIndex >= results.length
-      ) {
-        console.error("\x1b[31mLựa chọn không hợp lệ.\x1b[0m");
+      if (results.length === 0) {
+        console.error(
+          `\x1b[31mKhông tìm thấy phim nào khớp với: ${command.keyword}\x1b[0m`,
+        );
         process.exit(1);
       }
 
-      id = results[selectedIndex].id;
-    } finally {
-      rl.close();
+      console.log("\n\x1b[32mKết quả tìm kiếm:\x1b[0m");
+
+      results.forEach((movie, index) => {
+        const typeLabel = movie.type === "show" ? "TV" : "Movie";
+        console.log(
+          `${index + 1}. [${typeLabel}] ${movie.nameVi || movie.nameEn} ${
+            movie.nameEn && movie.nameVi && movie.nameEn !== movie.nameVi
+              ? `(${movie.nameEn})`
+              : ""
+          } - ID: ${movie.id}`,
+        );
+      });
+
+      const rl = readline.createInterface({ input, output });
+
+      try {
+        const answer = await rl.question(
+          "\n\x1b[36mChọn số thứ tự phim muốn phát: \x1b[0m",
+        );
+
+        const selectedIndex = Number(answer) - 1;
+
+        if (
+          Number.isNaN(selectedIndex) ||
+          selectedIndex < 0 ||
+          selectedIndex >= results.length
+        ) {
+          console.error("\x1b[31mLựa chọn không hợp lệ.\x1b[0m");
+          process.exit(1);
+        }
+
+        id = results[selectedIndex].id;
+      } finally {
+        rl.close();
+      }
+    } else if (command.mode === "search_auto_episode") {
+      id = await searchAndPickFirst(command.keyword, {
+        preferNonMovie: command.preferNonMovie,
+      });
+
+      autoSeasonEpisode = {
+        seasonNumber: command.seasonNumber,
+        episodeNumber: command.episodeNumber,
+      };
+    } else if (command.mode === "search_auto_season") {
+      id = await searchAndPickFirst(command.keyword, {
+        preferNonMovie: command.preferNonMovie,
+      });
+
+      autoSeasonOnly = {
+        seasonNumber: command.seasonNumber,
+      };
     }
-  } else if (command.mode === "search_auto_episode") {
-    id = await searchAndPickFirst(command.keyword, {
-      preferNonMovie: command.preferNonMovie,
-    });
 
-    autoSeasonEpisode = {
-      seasonNumber: command.seasonNumber,
-      episodeNumber: command.episodeNumber,
-    };
-  } else if (command.mode === "search_auto_season") {
-    id = await searchAndPickFirst(command.keyword, {
-      preferNonMovie: command.preferNonMovie,
-    });
-
-    autoSeasonOnly = {
-      seasonNumber: command.seasonNumber,
-    };
-  }
-
-  console.log(`\x1b[36m>>> Processing Movie ID: ${id}...\x1b[0m`);
-  try {
+    console.log(`\x1b[36m>>> Processing Movie ID: ${id}...\x1b[0m`);
     const movieData = await fetchMovieInfo(id);
     const rootTitle = movieData?.data?.title;
 
@@ -963,6 +963,7 @@ async function main() {
     }
 
     console.error("\x1b[31mAn error occurred:\x1b[0m", error);
+    process.exit(1);
   }
 }
 
