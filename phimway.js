@@ -232,10 +232,9 @@ async function askUserToSelectMovie() {
     results.forEach((movie, index) => {
       const typeLabel = movie.type === "show" ? "TV" : "Movie";
       console.log(
-        `${index + 1}. [${typeLabel}] ${movie.nameVi || movie.nameEn} ${
-          movie.nameEn && movie.nameVi && movie.nameEn !== movie.nameVi
-            ? `(${movie.nameEn})`
-            : ""
+        `${index + 1}. [${typeLabel}] ${movie.nameVi || movie.nameEn} ${movie.nameEn && movie.nameVi && movie.nameEn !== movie.nameVi
+          ? `(${movie.nameEn})`
+          : ""
         } - ID: ${movie.id}`,
       );
     });
@@ -553,10 +552,9 @@ async function searchAndPickFirst(keyword, options = {}) {
 
   console.log("\n\x1b[32mKết quả đầu tiên được chọn tự động:\x1b[0m");
   console.log(
-    `1. [${selected.type}] ${selected.nameVi || selected.nameEn} ${
-      selected.nameEn && selected.nameVi && selected.nameEn !== selected.nameVi
-        ? `(${selected.nameEn})`
-        : ""
+    `1. [${selected.type}] ${selected.nameVi || selected.nameEn} ${selected.nameEn && selected.nameVi && selected.nameEn !== selected.nameVi
+      ? `(${selected.nameEn})`
+      : ""
     } - ID: ${selected.id}`,
   );
 
@@ -771,9 +769,26 @@ async function startSubInjector(ipcSocketPath, subtitleMap) {
       if (subs && subs.length > 0) {
         addedSubsFor.add(currentUrl);
         console.log(`\n\x1b[35m[Background] Đã nạp phụ đề vào trình phát...\x1b[0m`);
-        for (let i = 0; i < subs.length; i++) {
-          const flag = i === 0 ? "select" : "cached";
-          client.write(JSON.stringify({command: ["sub-add", subs[i], flag]}) + "\n");
+
+        const viSubs = [];
+        const enSubs = [];
+
+        for (const sub of subs) {
+          if (sub.includes("_VN_")) {
+            viSubs.push(sub);
+          } else {
+            enSubs.push(sub);
+          }
+        }
+
+        // Nạp phụ đề tiếng Anh trước (cached)
+        for (const sub of enSubs) {
+          client.write(JSON.stringify({ command: ["sub-add", sub, "cached", "English", "eng"] }) + "\n");
+        }
+
+        // Nạp phụ đề tiếng Việt sau cùng (select) để làm mặc định
+        for (const sub of viSubs) {
+          client.write(JSON.stringify({ command: ["sub-add", sub, "select", "Tiếng Việt", "vie"] }) + "\n");
         }
       }
     };
@@ -784,16 +799,16 @@ async function startSubInjector(ipcSocketPath, subtitleMap) {
         try {
           const json = JSON.parse(msg);
           if (json.event === 'file-loaded') {
-            client.write(JSON.stringify({command: ["get_property", "path"], request_id: 999}) + "\n");
+            client.write(JSON.stringify({ command: ["get_property", "path"], request_id: 999 }) + "\n");
           } else if (json.request_id === 999 && json.data) {
             injectSubtitles(json.data);
           }
-        } catch (e) {}
+        } catch (e) { }
       }
     });
 
-    client.write(JSON.stringify({command: ["enable_elements", "events"]}) + "\n");
-    client.write(JSON.stringify({command: ["get_property", "path"], request_id: 999}) + "\n");
+    client.write(JSON.stringify({ command: ["enable_elements", "events"] }) + "\n");
+    client.write(JSON.stringify({ command: ["get_property", "path"], request_id: 999 }) + "\n");
   } catch (err) {
     console.log("\x1b[31m[Background] Lỗi IPC:\x1b[0m", err.message);
   }
@@ -827,10 +842,9 @@ async function main() {
       results.forEach((movie, index) => {
         const typeLabel = movie.type === "show" ? "TV" : "Movie";
         console.log(
-          `${index + 1}. [${typeLabel}] ${movie.nameVi || movie.nameEn} ${
-            movie.nameEn && movie.nameVi && movie.nameEn !== movie.nameVi
-              ? `(${movie.nameEn})`
-              : ""
+          `${index + 1}. [${typeLabel}] ${movie.nameVi || movie.nameEn} ${movie.nameEn && movie.nameVi && movie.nameEn !== movie.nameVi
+            ? `(${movie.nameEn})`
+            : ""
           } - ID: ${movie.id}`,
         );
       });
@@ -940,19 +954,19 @@ async function main() {
     // 2. Chạy song song từng batch 5 tập để tải data và phụ đề
     for (let i = 0; i < episodeIds.length; i += 5) {
       const chunk = episodeIds.slice(i, i + 5);
-      
+
       const chunkResults = await Promise.all(chunk.map(async (epId) => {
         const epData = await fetchMovieInfo(epId);
         const epTitle = epData?.data?.title;
         if (!epTitle || !epTitle.srcUrl) return null;
-        
+
         const subData = await fetchSubtitles(epId);
         const subs = subData?.data?.subtitles || [];
-        
+
         const viSubs = subs.filter((s) => s.language === "vi" && s.files?.length > 0).sort((a, b) => (b.likes || 0) - (a.likes || 0)).slice(0, 5);
         const enSubs = subs.filter((s) => s.language !== "vi" && s.files?.length > 0).sort((a, b) => (b.likes || 0) - (a.likes || 0)).slice(0, 5);
         const sortedSubs = [...viSubs, ...enSubs];
-        
+
         const localSubPaths = [];
         await Promise.all(sortedSubs.map(async (sub, idx) => {
           const remoteUrl = `https://legacy.phimway.com/b/subtitle/${sub.subsceneId}/${sub.files[0]}/vtt.css`;
@@ -966,7 +980,7 @@ async function main() {
             // bỏ qua file lỗi
           }
         }));
-        
+
         return {
           id: epId,
           number: epTitle.number || epId,
@@ -974,7 +988,7 @@ async function main() {
           subPaths: localSubPaths
         };
       }));
-      
+
       playlistItems.push(...chunkResults.filter(Boolean));
       process.stdout.write(`\r\x1b[32mĐã xử lý: ${Math.min(i + 5, episodeIds.length)}/${episodeIds.length} tập...\x1b[0m`);
     }
