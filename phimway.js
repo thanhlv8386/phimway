@@ -13,6 +13,7 @@ const { stdin: input, stdout: output } = require("process");
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
+const net = require("net");
 
 const USER_AGENT =
   "Mozilla/5.0 (iPad; CPU OS 6_0 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A5355d Safari/8536.25";
@@ -748,6 +749,56 @@ async function resolveSeasonOnlyTitleId(rootTitle, seasonNumber) {
   return selectedEpisode.id;
 }
 
+async function startSubInjector(ipcSocketPath, subtitleMap) {
+  let client = null;
+  try {
+    for (let i = 0; i < 20; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      if (fs.existsSync(ipcSocketPath)) break;
+    }
+
+    if (!fs.existsSync(ipcSocketPath)) {
+      console.log("\x1b[31m[Background] Không thể kết nối tới IINA IPC.\x1b[0m");
+      return;
+    }
+
+    client = net.createConnection(ipcSocketPath);
+    const addedSubsFor = new Set();
+
+    const injectSubtitles = (currentUrl) => {
+      if (!currentUrl || addedSubsFor.has(currentUrl)) return;
+      const subs = subtitleMap.get(currentUrl);
+      if (subs && subs.length > 0) {
+        addedSubsFor.add(currentUrl);
+        console.log(`\n\x1b[35m[Background] Đã nạp phụ đề vào trình phát...\x1b[0m`);
+        for (let i = 0; i < subs.length; i++) {
+          const flag = i === 0 ? "select" : "cached";
+          client.write(JSON.stringify({command: ["sub-add", subs[i], flag]}) + "\n");
+        }
+      }
+    };
+
+    client.on('data', data => {
+      const messages = data.toString().split('\n').filter(Boolean);
+      for (const msg of messages) {
+        try {
+          const json = JSON.parse(msg);
+          if (json.event === 'file-loaded') {
+            client.write(JSON.stringify({command: ["get_property", "path"], request_id: 999}) + "\n");
+          } else if (json.request_id === 999 && json.data) {
+            injectSubtitles(json.data);
+          }
+        } catch (e) {}
+      }
+    });
+
+    client.write(JSON.stringify({command: ["enable_elements", "events"]}) + "\n");
+    client.write(JSON.stringify({command: ["get_property", "path"], request_id: 999}) + "\n");
+  } catch (err) {
+    console.log("\x1b[31m[Background] Lỗi IPC:\x1b[0m", err.message);
+  }
+}
+
 async function main() {
   try {
     const command = parseCommandArgs(process.argv);
@@ -861,75 +912,101 @@ async function main() {
       process.exit(1);
     }
 
-    // Subtitle phải fetch theo ID tập đã chọn, không phải ID parent
-    const subtitleData = await fetchSubtitles(playableId);
+    console.log(`\x1b[32mMovie:\x1b[0m ${rootTitle.nameVi || rootTitle.nameEn}`);
 
-    console.log(`\x1b[32mMovie:\x1b[0m ${rootTitle.nameVi}`);
-
-    // Tạo thư mục downloads cục bộ (Xóa cũ tạo mới để đảm bảo sạch sẽ)
-    const downloadDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), `phimway-${id}-`),
-    );
-
-    console.log(`\x1b[36m📁 Temporary subtitle folder: ${downloadDir}\x1b[0m`);
-    const subs = subtitleData.data.subtitles || [];
-
-    // Lấy tối đa 5 bản tiếng Việt và 5 bản tiếng Anh
-    const viSubs = subs
-      .filter((s) => s.language === "vi" && s.files?.length > 0)
-      .sort((a, b) => (b.likes || 0) - (a.likes || 0))
-      .slice(0, 5);
-    const enSubs = subs
-      .filter((s) => s.language !== "vi" && s.files?.length > 0)
-      .sort((a, b) => (b.likes || 0) - (a.likes || 0))
-      .slice(0, 5);
-
-    const sortedSubs = [...viSubs, ...enSubs];
-
-    const downloadPromises = sortedSubs.map(async (sub, i) => {
-      const remoteUrl = `https://legacy.phimway.com/b/subtitle/${sub.subsceneId}/${sub.files[0]}/vtt.css`;
-      const lang = sub.language === "vi" ? "VN" : "EN";
-      const defaultLabel = sub.isDefault ? "_Default" : "";
-      const likesLabel = sub.likes ? `_(${sub.likes}likes)` : "";
-      const fileName = `${i + 1}_${lang}${defaultLabel}${likesLabel}_${sub.subsceneId}.vtt`;
-      const localPath = path.join(downloadDir, fileName);
-
-      try {
-        await downloadSubtitle(remoteUrl, localPath);
-        console.log(`\x1b[34m  ✓ Downloaded:\x1b[0m ${fileName}`);
-        return { name: fileName, path: localPath };
-      } catch (err) {
-        console.error(`\x1b[33m  ✗ Error downloading ${fileName}\x1b[0m`);
-        return { name: fileName, path: null };
+    // 1. Xác định danh sách các tập cần phát (từ tập được chọn đến hết season)
+    let episodeIds = [];
+    if (title.parent && title.parent.id) {
+      const parentChildrenData = await fetchChildren(title.parent.id);
+      const siblings = parentChildrenData?.data?.titles?.nodes || [];
+      const currentIndex = siblings.findIndex((s) => s.id === playableId);
+      if (currentIndex !== -1) {
+        episodeIds = siblings.slice(currentIndex).map((s) => s.id);
+      } else {
+        episodeIds = [playableId];
       }
+    } else {
+      episodeIds = [playableId];
+    }
+
+    console.log(`\n\x1b[36m>>> Đang chuẩn bị danh sách phát (${episodeIds.length} tập)...\x1b[0m`);
+    const downloadDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), `phimway-playlist-${id}-`),
+    );
+    console.log(`\x1b[36m📁 Thư mục phụ đề và playlist: ${downloadDir}\x1b[0m`);
+
+    const playlistItems = [];
+
+    // 2. Chạy song song từng batch 5 tập để tải data và phụ đề
+    for (let i = 0; i < episodeIds.length; i += 5) {
+      const chunk = episodeIds.slice(i, i + 5);
+      
+      const chunkResults = await Promise.all(chunk.map(async (epId) => {
+        const epData = await fetchMovieInfo(epId);
+        const epTitle = epData?.data?.title;
+        if (!epTitle || !epTitle.srcUrl) return null;
+        
+        const subData = await fetchSubtitles(epId);
+        const subs = subData?.data?.subtitles || [];
+        
+        const viSubs = subs.filter((s) => s.language === "vi" && s.files?.length > 0).sort((a, b) => (b.likes || 0) - (a.likes || 0)).slice(0, 5);
+        const enSubs = subs.filter((s) => s.language !== "vi" && s.files?.length > 0).sort((a, b) => (b.likes || 0) - (a.likes || 0)).slice(0, 5);
+        const sortedSubs = [...viSubs, ...enSubs];
+        
+        const localSubPaths = [];
+        await Promise.all(sortedSubs.map(async (sub, idx) => {
+          const remoteUrl = `https://legacy.phimway.com/b/subtitle/${sub.subsceneId}/${sub.files[0]}/vtt.css`;
+          const lang = sub.language === "vi" ? "VN" : "EN";
+          const fileName = `E${epTitle.number || epId}_${idx + 1}_${lang}_${sub.subsceneId}.vtt`;
+          const localPath = path.join(downloadDir, fileName);
+          try {
+            await downloadSubtitle(remoteUrl, localPath);
+            localSubPaths.push(localPath);
+          } catch (e) {
+            // bỏ qua file lỗi
+          }
+        }));
+        
+        return {
+          id: epId,
+          number: epTitle.number || epId,
+          srcUrl: epTitle.srcUrl,
+          subPaths: localSubPaths
+        };
+      }));
+      
+      playlistItems.push(...chunkResults.filter(Boolean));
+      process.stdout.write(`\r\x1b[32mĐã xử lý: ${Math.min(i + 5, episodeIds.length)}/${episodeIds.length} tập...\x1b[0m`);
+    }
+    console.log(); // newline
+
+    // 3. Tạo file M3U playlist
+    let m3uContent = "#EXTM3U\n\n";
+    const subtitleMap = new Map();
+
+    playlistItems.forEach((item) => {
+      const titleName = rootTitle.nameVi || rootTitle.nameEn;
+      const episodeName = episodeIds.length > 1 ? ` - Tập ${item.number}` : "";
+      m3uContent += `#EXTINF:-1, ${titleName}${episodeName}\n`;
+      m3uContent += `${item.srcUrl}\n\n`;
+      subtitleMap.set(item.srcUrl, item.subPaths);
     });
 
-    const subDownloadResults = await Promise.all(downloadPromises);
-    const localSubPaths = subDownloadResults
-      .filter((p) => p.path !== null)
-      .map((p) => p.path);
+    const playlistPath = path.join(downloadDir, "playlist.m3u");
+    fs.writeFileSync(playlistPath, m3uContent, "utf-8");
 
     function shellQuote(str) {
       return `'${String(str).replace(/'/g, `'\\''`)}'`;
     }
 
-    // Ghép nhiều file phụ đề theo format của mpv/IINA
-    // Ví dụ: --sub-files='/path/a.vtt:/path/b.vtt'
-    const subFilesArg =
-      localSubPaths.length > 0
-        ? `--sub-files=${shellQuote(localSubPaths.join(":"))}`
-        : "";
-
+    const ipcSocketPath = path.join(os.tmpdir(), `phimway-ipc-${Date.now()}.sock`);
     const mpvArgs = [
       `--user-agent=${shellQuote(USER_AGENT)}`,
       `--referrer=${shellQuote("https://legacy.phimway.com")}`,
       `--http-header-fields=${shellQuote("Origin: https://legacy.phimway.com")}`,
       `--resume-playback=no`,
+      `--input-ipc-server=${shellQuote(ipcSocketPath)}`,
     ];
-
-    if (subFilesArg) {
-      mpvArgs.push(subFilesArg);
-    }
 
     const finalCommand = [
       "open",
@@ -937,15 +1014,12 @@ async function main() {
       "-a",
       "IINA",
       "--args",
-      shellQuote(title.srcUrl),
+      shellQuote(playlistPath),
       ...mpvArgs.map((arg) => "--mpv-" + arg.substring(2)),
     ].join(" ");
 
     console.log(`\n\x1b[35m>>> Opening IINA via iina-cli...\x1b[0m`);
     console.log(`\x1b[90m${finalCommand}\x1b[0m`);
-
-    // Mở thư mục subtitle nếu muốn xem file đã tải
-    // exec(`open ${shellQuote(downloadDir)}`);
 
     // Chạy trực tiếp iina-cli
     exec(finalCommand, (err, stdout, stderr) => {
@@ -956,6 +1030,9 @@ async function main() {
         console.log("\x1b[32m✓ Success! IINA should be playing now.\x1b[0m");
       }
     });
+
+    console.log(`\n\x1b[36m[Chú ý] Cửa sổ Terminal sẽ tiếp tục chạy ngầm để nạp phụ đề vào IINA.\x1b[0m`);
+    startSubInjector(ipcSocketPath, subtitleMap);
   } catch (error) {
     if (
       error?.name === "AbortError" ||
