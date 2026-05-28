@@ -14,6 +14,7 @@ const os = require("os");
 const fs = require("fs");
 const path = require("path");
 const net = require("net");
+const { webcrypto } = require("crypto");
 
 const USER_AGENT =
   "Mozilla/5.0 (iPad; CPU OS 6_0 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A5355d Safari/8536.25";
@@ -502,7 +503,7 @@ async function fetchSubtitles(id) {
     id
     subsceneId
     language
-    files
+    fileName
     isDefault
     likes
   }
@@ -526,11 +527,51 @@ async function fetchSubtitles(id) {
   return await response.json();
 }
 
+function rot19(s) {
+  return s.replace(/[a-z]/gi, (c) => {
+    const base = c <= "Z" ? 65 : 97;
+    return String.fromCharCode(((c.charCodeAt(0) - base + 19) % 26) + base);
+  });
+}
+
 async function downloadSubtitle(url, destPath) {
-  const response = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+  // fileName = phần cuối của URL, ví dụ "v01.srt"
+  const fileName = path.basename(new URL(url).pathname);
+
+  // 1. Derive AES-256 key: SHA-256( "/watch/" + ROT19(fileName) )
+  const keyInput = "/watch/" + rot19(fileName);
+  const hash = await webcrypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(keyInput),
+  );
+  const key = await webcrypto.subtle.importKey(
+    "raw",
+    hash,
+    { name: "AES-GCM" },
+    false,
+    ["decrypt"],
+  );
+
+  // 2. Tải file base64
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": USER_AGENT,
+      Accept: "*/*",
+    },
+  });
   if (!response.ok)
     throw new Error(`Failed to download subtitle: ${response.status}`);
-  const text = await response.text();
+  const b64 = (await response.text()).trim();
+
+  // 3. Base64 -> bytes, tách IV (12) + ciphertext+tag
+  const bytes = Buffer.from(b64, "base64");
+  const iv = bytes.subarray(0, 12);
+  const ct = bytes.subarray(12);
+
+  // 4. AES-GCM decrypt
+  const pt = await webcrypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
+  const text = new TextDecoder("utf-8").decode(pt);
+
   fs.writeFileSync(destPath, text, "utf-8");
   return destPath;
 }
@@ -963,13 +1004,13 @@ async function main() {
         const subData = await fetchSubtitles(epId);
         const subs = subData?.data?.subtitles || [];
 
-        const viSubs = subs.filter((s) => s.language === "vi" && s.files?.length > 0).sort((a, b) => (b.likes || 0) - (a.likes || 0)).slice(0, 5);
-        const enSubs = subs.filter((s) => s.language !== "vi" && s.files?.length > 0).sort((a, b) => (b.likes || 0) - (a.likes || 0)).slice(0, 5);
+        const viSubs = subs.filter((s) => s.language === "vi" && s.fileName).sort((a, b) => (b.likes || 0) - (a.likes || 0)).slice(0, 5);
+        const enSubs = subs.filter((s) => s.language !== "vi" && s.fileName).sort((a, b) => (b.likes || 0) - (a.likes || 0)).slice(0, 5);
         const sortedSubs = [...viSubs, ...enSubs];
 
         const localSubPaths = [];
         await Promise.all(sortedSubs.map(async (sub, idx) => {
-          const remoteUrl = `https://legacy.phimway.com/b/subtitle/${sub.subsceneId}/${sub.files[0]}/vtt.css`;
+          const remoteUrl = `https://legacy.phimway.com/b/subtitle/${sub.subsceneId}/${sub.fileName}`;
           const lang = sub.language === "vi" ? "VN" : "EN";
           const fileName = `E${epTitle.number || epId}_${idx + 1}_${lang}_${sub.subsceneId}.vtt`;
           const localPath = path.join(downloadDir, fileName);
